@@ -3,6 +3,8 @@ This script updates an already generated deployment.yaml with a new service acco
 
 ## **Setup Instructions**  
 
+![Deployment Manifest Editor](Deployment_Manifest_Editor.png)
+
 ### **1️⃣ Clone the Repository**  
 Clone the project from the official repository:  
 ```bash

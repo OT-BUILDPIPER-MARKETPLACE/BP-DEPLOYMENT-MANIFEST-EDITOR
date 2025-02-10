@@ -1,6 +1,6 @@
 FROM alpine:latest
 RUN apk add --no-cache --upgrade bash
-RUN apk add jq yq
+RUN apk add jq yq git
 
 COPY build.sh .
 COPY getDynamicVars.sh .

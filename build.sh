@@ -10,12 +10,12 @@ DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
 
 logInfoMessage "I'll build the code available at [$CODEBASE_LOCATION]"
 
-# # Check if yq is installed
-# yq --version &>/dev/null
-# if [ $? -ne 0 ]; then
-#     logErrorMessage "yq is not installed. Please install it before running this script."
-#     exit 1
-# fi
+# Check if yq is installed
+yq --version &>/dev/null
+if [ $? -ne 0 ]; then
+    logErrorMessage "yq is not installed. Please install it before running this script."
+    exit 1
+fi
 
 # Check if deployment.yaml exists
 if [ ! -f "$DEPLOYMENT_FILE" ]; then
@@ -33,7 +33,7 @@ if [[ -z "$NEW_SERVICE_ACCOUNT" ]]; then
 else
     logInfoMessage "Updating serviceAccountName to: $NEW_SERVICE_ACCOUNT"
     yq e -i ".spec.template.spec.serviceAccountName = \"$NEW_SERVICE_ACCOUNT\"" "$DEPLOYMENT_FILE"
-    logSuccessMessage "serviceAccountName updated successfully!"
+    logInfoMessage "serviceAccountName updated successfully!"
 fi
 
 TASK_STATUS=$?

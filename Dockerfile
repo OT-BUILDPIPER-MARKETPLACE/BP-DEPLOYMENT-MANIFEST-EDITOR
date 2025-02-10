@@ -3,7 +3,8 @@ RUN apk add --no-cache --upgrade bash
 RUN apk add jq yq
 
 COPY build.sh .
-RUN chmod +x build.sh
+COPY getDynamicVars.sh .
+RUN chmod +x build.sh getDynamicVars.sh
 
 ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 

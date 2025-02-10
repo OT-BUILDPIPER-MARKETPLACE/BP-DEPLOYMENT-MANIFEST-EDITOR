@@ -2,8 +2,22 @@
 
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
+source getDynamicVars.sh
 
 TASK_STATUS=0
+
+# Main logic to check conditions and call fetch_service_details
+if [ -n "$SOURCE_VARIABLE_REPO" ]; then
+    # Check if NEW_SERVICE_ACCOUNT is provided
+    if [ -n "$NEW_SERVICE_ACCOUNT" ]; then
+        echo "NEW_SERVICE_ACCOUNT is provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
+    else
+        echo "Fetching details from $SOURCE_VARIABLE_REPO as NEW_SERVICE_ACCOUNT is not provided."
+        fetch_service_details
+    fi
+else
+    logErrorMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from $SOURCE_VARIABLE_REPO."
+fi
 
 CODEBASE_LOCATION="/bp/data/k8s_manifest"
 DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"

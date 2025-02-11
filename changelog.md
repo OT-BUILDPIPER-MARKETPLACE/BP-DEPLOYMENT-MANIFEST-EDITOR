@@ -1,0 +1,60 @@
+### **Change Log for Docker Image: `registry.buildpiper.in/deployment-manifest-editor:0.0.1`**  
+
+---
+
+**Version:** `deployment-manifest-editor:0.0.1`  
+**Release Date:** *2025-02-10*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Added
+- Initial version of the script `build.sh` to update `serviceAccountName` in `deployment.yaml`.
+- Added a Dockerfile to run the script inside a container with `yq` pre-installed.
+
+### Changed
+- The script now checks if `NEW_SERVICE_ACCOUNT` is provided.
+- If `NEW_SERVICE_ACCOUNT` is missing, it logs a warning and continues with the pre-configured value.
+
+### Fixed
+- Corrected issue where the script exited if `deployment.yaml` was missing.
+- Ensured `yq` is installed inside the container.
+
+---
+
+### **Change Log for Docker Image: `registry.buildpiper.in/deployment-manifest-editor:0.0.2`**  
+
+---
+
+**Version:** `deployment-manifest-editor:0.0.2`  
+**Release Date:** *2025-02-10*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Added
+- Implemented logic to update an already generated `deployment.yaml` with a new service account if provided.
+- Added a function `fetch_service_details` in `getDynamicVars.sh` to dynamically fetch service details from a repository.
+- Enhanced repository handling with cloning, updating, and validation steps.
+- Added logging for better debugging and error handling.
+
+### Changed
+- `build.sh` now fetches details from `SOURCE_VARIABLE_REPO` only if `NEW_SERVICE_ACCOUNT` is not provided.
+- Improved `fetch_service_details` to determine `CODEBASE_DIR` dynamically from `deploy_stateless_app`.
+- Updated error handling for missing `deployment.yaml` and missing `mavenrepos.json`.
+- `NEW_SERVICE_ACCOUNT` is now extracted dynamically if not provided as input.
+
+### Fixed
+- Resolved an issue where `fetch_service_details` failed if the repository directory did not exist.
+- Fixed incorrect removal of cloned repository, ensuring cleanup happens only after extracting variables.
+- Ensured `git fetch` and `git pull` are used properly when updating an already cloned repository.
+- Addressed an issue where `DEPLOY_SERVICE_NAME` was not being set correctly from JSON.
+- Fixed missing dependency check for `jq` and ensured proper error messages are displayed when required tools are missing.
+
+---
+
+**Version:** `deployment-manifest-editor:0.0.3`  
+**Release Date:** *2025-02-11*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Fixed
+- Prevented serviceAccountName update in deployment.yaml if NEW_SERVICE_ACCOUNT is null or blank.
+- It ensures that if NEW_SERVICE_ACCOUNT is null or blank, the script does not modify the serviceAccountName field in deployment.yaml, preserving the existing configuration.
+
+---

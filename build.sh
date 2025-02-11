@@ -39,15 +39,16 @@ fi
 
 TASK_STATUS=$?
 
-# Check if NEW_SERVICE_ACCOUNT is provided
-if [[ -z "$NEW_SERVICE_ACCOUNT" ]]; then
-    logWarningMessage "No new service account name provided. Continuing with the pre-configured name."
-    NEW_SERVICE_ACCOUNT=$(yq e '.spec.template.spec.serviceAccountName' "$DEPLOYMENT_FILE")
-    logInfoMessage "Using pre-configured service account: $NEW_SERVICE_ACCOUNT"
-else
+# Fetch the current serviceAccountName
+CURRENT_SERVICE_ACCOUNT=$(yq e '.spec.template.spec.serviceAccountName' "$DEPLOYMENT_FILE")
+
+# Check if NEW_SERVICE_ACCOUNT is provided and not empty
+if [[ -n "$NEW_SERVICE_ACCOUNT" && "$NEW_SERVICE_ACCOUNT" != "null" ]]; then
     logInfoMessage "Updating serviceAccountName to: $NEW_SERVICE_ACCOUNT"
     yq e -i ".spec.template.spec.serviceAccountName = \"$NEW_SERVICE_ACCOUNT\"" "$DEPLOYMENT_FILE"
     logInfoMessage "serviceAccountName updated successfully!"
+else
+    logWarningMessage "No valid new service account name provided. Keeping existing service account: $CURRENT_SERVICE_ACCOUNT"
 fi
 
 TASK_STATUS=$?

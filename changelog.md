@@ -48,3 +48,13 @@
 - Fixed missing dependency check for `jq` and ensured proper error messages are displayed when required tools are missing.
 
 ---
+
+**Version:** `deployment-manifest-editor:0.0.3`  
+**Release Date:** *2025-02-11*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Fixed
+- Prevented serviceAccountName update in deployment.yaml if NEW_SERVICE_ACCOUNT is null or blank.
+- It ensures that if NEW_SERVICE_ACCOUNT is null or blank, the script does not modify the serviceAccountName field in deployment.yaml, preserving the existing configuration.
+
+---

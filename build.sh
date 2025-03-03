@@ -51,6 +51,19 @@ else
     logWarningMessage "No valid new service account name provided. Keeping existing service account: $CURRENT_SERVICE_ACCOUNT"
 fi
 
+# Main logic to check conditions and call fetch_service_details
+if [ -n "$SOURCE_VARIABLE_REPO" ]; then
+    # Check if NEW_SERVICE_ACCOUNT is provided
+    if [[ -n "$fsGroup" && -n "$runAsUser" ]]; then
+        echo "fsGroup and runAsUser are provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
+    else
+        echo "Fetching details from $SOURCE_VARIABLE_REPO as fsGroup and runAsUser are not provided."
+        fetch_service_details
+    fi
+else
+    logErrorMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from $SOURCE_VARIABLE_REPO."
+fi
+
 # Update securityContext with fsGroup and runAsUser
 if [[ -n "$fsGroup" && -n "$runAsUser" ]]; then
     logInfoMessage "Updating securityContext with fsGroup: $fsGroup and runAsUser: $runAsUser"

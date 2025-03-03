@@ -69,6 +69,10 @@ function fetch_service_details() {
     # Extract the specific details and export them as environment variables    
     export NEW_SERVICE_ACCOUNT=$(echo "$service_data" | jq -r '.NEW_SERVICE_ACCOUNT')
 
+    export fsGroup=$(echo "$service_data" | jq -r '.fsGroup')
+
+    export runAsUser=$(echo "$service_data" | jq -r '.runAsUser')
+
     # Remove the cloned repository
     echo "Removing the cloned repository..."
     rm -rf "$LOCAL_REPO_DIR" || { echo "Error: Failed to remove directory $LOCAL_REPO_DIR."; return 1; }

@@ -51,6 +51,26 @@ else
     logWarningMessage "No valid new service account name provided. Keeping existing service account: $CURRENT_SERVICE_ACCOUNT"
 fi
 
+# Update securityContext with fsGroup and runAsUser
+if [[ -n "$fsGroup" && -n "$runAsUser" ]]; then
+    logInfoMessage "Updating securityContext with fsGroup: $fsGroup and runAsUser: $runAsUser"
+    yq e -i ".spec.template.spec.securityContext.fsGroup = $fsGroup" "$DEPLOYMENT_FILE"
+    yq e -i ".spec.template.spec.securityContext.runAsUser = $runAsUser" "$DEPLOYMENT_FILE"
+    logInfoMessage "securityContext updated successfully!"
+else
+    logWarningMessage "fsGroup or runAsUser values are missing. Skipping securityContext update."
+fi
+
+# Ensure securityContext exists in containers
+logInfoMessage "Updating securityContext in container specification"
+yq e -i '.spec.template.spec.containers[].securityContext.allowPrivilegeEscalation = false' "$DEPLOYMENT_FILE"
+yq e -i '.spec.template.spec.containers[].securityContext.capabilities.drop = ["ALL"]' "$DEPLOYMENT_FILE"
+yq e -i '.spec.template.spec.containers[].securityContext.readOnlyRootFilesystem = true' "$DEPLOYMENT_FILE"
+yq e -i '.spec.template.spec.containers[].securityContext.runAsNonRoot = true' "$DEPLOYMENT_FILE"
+yq e -i '.spec.template.spec.containers[].securityContext.seccompProfile.type = "RuntimeDefault"' "$DEPLOYMENT_FILE"
+
+logInfoMessage "Container securityContext updated successfully!"
+
 TASK_STATUS=$?
 
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}

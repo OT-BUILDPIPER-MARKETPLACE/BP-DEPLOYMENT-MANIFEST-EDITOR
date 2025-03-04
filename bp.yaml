@@ -1,0 +1,4 @@
+# bp.yaml
+image:
+  name: registry.buildpiper.in/deployment-manifest-editor
+  tag: 0.0.5

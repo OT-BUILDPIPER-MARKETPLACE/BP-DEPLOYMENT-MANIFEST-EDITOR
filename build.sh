@@ -51,6 +51,37 @@ else
     logWarningMessage "No valid new service account name provided. Keeping existing service account: $CURRENT_SERVICE_ACCOUNT"
 fi
 
+# Main logic to check conditions and call fetch_service_details
+if [ -n "$SOURCE_VARIABLE_REPO" ]; then
+    # Check if NEW_SERVICE_ACCOUNT is provided
+    if [[ -n "$fsGroup" && -n "$runAsUser" ]]; then
+        echo "fsGroup and runAsUser are provided. Skipping fetching details from SOURCE_VARIABLE_REPO."
+    else
+        echo "Fetching details from $SOURCE_VARIABLE_REPO as fsGroup and runAsUser are not provided."
+        fetch_service_details
+    fi
+else
+    logErrorMessage "SOURCE_VARIABLE_REPO is not defined. Skipping fetching details from $SOURCE_VARIABLE_REPO."
+fi
+
+# Update securityContext with fsGroup and runAsUser
+if [[ -n "${fsGroup:-}" && "${fsGroup}" != "null" && -n "${runAsUser:-}" && "${runAsUser}" != "null" ]]; then
+    logInfoMessage "Updating securityContext with fsGroup: $fsGroup and runAsUser: $runAsUser"
+    yq e -i ".spec.template.spec.securityContext.fsGroup = $fsGroup" "$DEPLOYMENT_FILE"
+    yq e -i ".spec.template.spec.securityContext.runAsUser = $runAsUser" "$DEPLOYMENT_FILE"
+    logInfoMessage "securityContext updated successfully!"
+    # Ensure securityContext exists in containers
+    logInfoMessage "Updating securityContext in container specification"
+    yq e -i '.spec.template.spec.containers[].securityContext.allowPrivilegeEscalation = false' "$DEPLOYMENT_FILE"
+    yq e -i '.spec.template.spec.containers[].securityContext.capabilities.drop = ["ALL"]' "$DEPLOYMENT_FILE"
+    yq e -i '.spec.template.spec.containers[].securityContext.readOnlyRootFilesystem = true' "$DEPLOYMENT_FILE"
+    yq e -i '.spec.template.spec.containers[].securityContext.runAsNonRoot = true' "$DEPLOYMENT_FILE"
+    yq e -i '.spec.template.spec.containers[].securityContext.seccompProfile.type = "RuntimeDefault"' "$DEPLOYMENT_FILE"
+    logInfoMessage "Container securityContext updated successfully!"
+else
+    logWarningMessage "fsGroup or runAsUser values are missing. Skipping securityContext update."
+fi
+
 TASK_STATUS=$?
 
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}

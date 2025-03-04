@@ -54,7 +54,30 @@
 **Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
 
 ### Fixed
+
 - Prevented serviceAccountName update in deployment.yaml if NEW_SERVICE_ACCOUNT is null or blank.
 - It ensures that if NEW_SERVICE_ACCOUNT is null or blank, the script does not modify the serviceAccountName field in deployment.yaml, preserving the existing configuration.
 
 ---
+
+**Version:** `deployment-manifest-editor:0.0.4`
+**Release Date:** *2025-03-03*
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Fixed
+
+- Updated script to check and update `fsGroup` and `runAsUser` in `securityContext`.
+- Ensured `securityContext` settings for containers are enforced.
+- Improved logging for missing or incorrect values.
+
+---
+
+**Version:** `deployment-manifest-editor:0.0.5`  
+**Release Date:** *2025-03-04*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### **Fixed**
+
+- Improved validation to ensure `fsGroup` and `runAsUser` are neither empty nor set to `"null"`.  
+- Enhanced logging for better debugging of `securityContext` updates.  
+- Ensured `securityContext` modifications apply only when valid values are provided.

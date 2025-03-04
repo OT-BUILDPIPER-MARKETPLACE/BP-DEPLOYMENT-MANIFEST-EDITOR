@@ -34,6 +34,7 @@ function fetch_service_details() {
 
     # Path to the mavenrepos.json file
     local json_file="$LOCAL_REPO_DIR/mavenrepos.json"
+    local yq_query_file="$LOCAL_REPO_DIR/deployment_patch.yq"  # <-- Path for yq query file
 
     # Check if mavenrepos.json exists
     if [ ! -f "$json_file" ]; then
@@ -68,10 +69,28 @@ function fetch_service_details() {
 
     # Extract the specific details and export them as environment variables    
     export NEW_SERVICE_ACCOUNT=$(echo "$service_data" | jq -r '.NEW_SERVICE_ACCOUNT')
+    export CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    export DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
 
-    export fsGroup=$(echo "$service_data" | jq -r '.fsGroup')
+    # Check if security context should be used
+    USE_SECURITY_CONTEXT=$(echo "$service_data" | jq -r '.USE_SECURITY_CONTEXT')
 
-    export runAsUser=$(echo "$service_data" | jq -r '.runAsUser')
+    # Apply if security context is set to be Yes
+    if [ "$USE_SECURITY_CONTEXT" == "Yes" ]; then
+        echo "Security context is enabled. Patching deployment with yq..."
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ -n "$line" && "$line" != "#"* ]]; then
+                yq eval -i "$line" "$DEPLOYMENT_FILE" || {
+                    echo "Error: Failed to apply yq modification: $line"
+                    return 1
+                }
+            fi
+        done < "$yq_query_file"
+
+    else
+        echo "Security context is disabled for this service."
+    fi
 
     # Remove the cloned repository
     echo "Removing the cloned repository..."

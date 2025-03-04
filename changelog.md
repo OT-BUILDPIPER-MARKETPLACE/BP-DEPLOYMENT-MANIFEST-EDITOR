@@ -71,3 +71,13 @@
 - Improved logging for missing or incorrect values.
 
 ---
+
+**Version:** `deployment-manifest-editor:0.0.5`  
+**Release Date:** *2025-03-04*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### **Fixed**
+
+- Improved validation to ensure `fsGroup` and `runAsUser` are neither empty nor set to `"null"`.  
+- Enhanced logging for better debugging of `securityContext` updates.  
+- Ensured `securityContext` modifications apply only when valid values are provided.

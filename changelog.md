@@ -126,4 +126,4 @@
   - Ensured yq modifications are only applied when USE_SECURITY_CONTEXT is set to "Yes".
 - Enhanced logging for better debugging of `securityContext` updates.
 - Ensured `securityContext` modifications apply only when valid values are provided.
-- Made `yq_query_file` check conditional on `use_security_context`.
+- Made `yq_query_file` check conditional on `USE_SECURITY_CONTEXT`.

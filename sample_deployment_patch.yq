@@ -1,0 +1,7 @@
+.spec.template.spec.securityContext.fsGroup = 2000
+.spec.template.spec.securityContext.runAsUser = 1001
+.spec.template.spec.containers[].securityContext.allowPrivilegeEscalation = false
+.spec.template.spec.containers[].securityContext.capabilities.drop = ["ALL"]
+.spec.template.spec.containers[].securityContext.readOnlyRootFilesystem = true
+.spec.template.spec.containers[].securityContext.runAsNonRoot = true
+.spec.template.spec.containers[].securityContext.seccompProfile.type = "RuntimeDefault"

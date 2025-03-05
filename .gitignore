@@ -1,1 +1,3 @@
 deployment.yaml
+security_context.yaml
+updated_deployment.yaml

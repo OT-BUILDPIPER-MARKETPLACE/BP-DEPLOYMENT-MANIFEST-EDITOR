@@ -128,7 +128,7 @@ elif [[ "$ACTION_TYPE" == "update" ]]; then
     updateEnvVariables
 else
     logErrorMessage "❌ ERROR: Invalid ACTION_TYPE '$ACTION_TYPE'. Please set it to 'patch' or 'update'."
+    TASK_STATUS=1
 fi
 
-TASK_STATUS=$?
 saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}

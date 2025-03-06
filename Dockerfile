@@ -9,8 +9,6 @@ RUN chmod +x build.sh getDynamicVars.sh
 ADD BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 
 ENV NEW_SERVICE_ACCOUNT ""
-ENV fsGroup ""
-ENV runAsUser ""
 
 ENV SLEEP_DURATION 5s
 ENV ACTIVITY_SUB_TASK_CODE BP-DEPLOYMENT-MANIFEST-EDITOR

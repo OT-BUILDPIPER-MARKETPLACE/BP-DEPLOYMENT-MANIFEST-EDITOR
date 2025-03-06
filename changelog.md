@@ -127,3 +127,33 @@
 - Enhanced logging for better debugging of `securityContext` updates.
 - Ensured `securityContext` modifications apply only when valid values are provided.
 - Made `yq_query_file` check conditional on `USE_SECURITY_CONTEXT`.
+
+---
+
+## Change Log for Docker Image: `registry.buildpiper.in/deployment-manifest-editor:0.0.7`
+
+---
+
+**Version:** `deployment-manifest-editor:0.0.7`  
+**Release Date:** *2025-03-06*  
+**Maintainer:** *[Mukul Joshi](mukul.joshi@opstree.com), [GitHub](https://github.com/mukulmj)*  
+
+### Added
+
+- Implemented a check for `ACTION_TYPE` to prevent execution if no valid value (`patch` or `update`) is provided.  
+- Added enhanced error handling for missing or invalid `ACTION_TYPE`.  
+- Included more detailed logging messages for better debugging.  
+
+### Improved
+
+- Refactored `patchDeployment` to check `NEW_SERVICE_ACCOUNT` before fetching details from `SOURCE_VARIABLE_REPO`.  
+- Improved `updateEnvVariables` by adding a validation check for `JSON_FILE` before extracting environment variables.  
+- Optimized `envsubst` substitution logic to prevent unnecessary overwrites.  
+- Strengthened error handling to ensure safer script execution.  
+
+### Fixed
+
+- Fixed a redundant call to `fetch_service_details` when `NEW_SERVICE_ACCOUNT` or `USE_SECURITY_CONTEXT` is already set.  
+- Resolved an issue where `TASK_STATUS` was being overwritten unnecessarily.  
+
+---

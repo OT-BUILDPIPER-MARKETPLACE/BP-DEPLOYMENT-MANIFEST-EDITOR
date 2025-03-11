@@ -24,7 +24,7 @@ patchDeployment() {
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
 
-    logInfoMessage "I'll build the code available at [$CODEBASE_LOCATION]"
+    logInfoMessage "I'll patch the deployments available at [$CODEBASE_LOCATION]"
 
     # Check if yq is installed
     yq --version &>/dev/null
@@ -71,7 +71,7 @@ patchDeployment() {
     saveTaskStatus ${TASK_STATUS} ${ACTIVITY_SUB_TASK_CODE}
 }
 
-# Function to update environment variables in deployment manifests
+# Function to update environment variables in deployment manifests old
 updateEnvVariables() {
     logInfoMessage "I'll update the environment variables in deployment manifests."
 
@@ -90,26 +90,30 @@ updateEnvVariables() {
     source "$ENV_FILE"
     set +o allexport
 
-    # Iterate over YAML files and replace placeholders
-    for yaml_file in "$YAML_DIR"/*.yaml; do
+    # Extract list of YAML files to process
+    jq -r '.manifest_meta_data.manifest_file_paths[]' "$JSON_FILE" | while read -r yaml_filename; do
+        yaml_file="$YAML_DIR/$yaml_filename"
         TMP_FILE="${yaml_file}.tmp"
         BACKUP_FILE="${yaml_file}.backup"
-        FILENAME=$(basename "$yaml_file")
 
-        cp "$yaml_file" "$BACKUP_FILE"
+        if [[ -f "$yaml_file" ]]; then
+            cp "$yaml_file" "$BACKUP_FILE"
 
-        envsubst < "$yaml_file" > "$TMP_FILE"
+            envsubst < "$yaml_file" > "$TMP_FILE"
 
-        if ! cmp -s "$BACKUP_FILE" "$TMP_FILE"; then
-            mv "$TMP_FILE" "$yaml_file"
+            if ! cmp -s "$BACKUP_FILE" "$TMP_FILE"; then
+                mv "$TMP_FILE" "$yaml_file"
 
-            echo -e "\n🟢 UPDATED: $FILENAME" | tee -a "$LOG_FILE"
-            echo "🔽 Changes in $FILENAME:" | tee -a "$LOG_FILE"
+                echo -e "\n🟢 UPDATED: $yaml_filename" | tee -a "$LOG_FILE"
+                echo "🔽 Changes in $yaml_filename:" | tee -a "$LOG_FILE"
 
-            diff --color=always -u "$BACKUP_FILE" "$yaml_file" | tee -a "$LOG_FILE"
+                diff --color=always -u "$BACKUP_FILE" "$yaml_file" | tee -a "$LOG_FILE"
+            fi
+
+            rm -f "$BACKUP_FILE"
+        else
+            logErrorMessage "❌ ERROR: Manifest file '$yaml_filename' not found in '$YAML_DIR'. Skipping..." | tee -a "$LOG_FILE"
         fi
-
-        rm -f "$BACKUP_FILE"
     done
 
     echo -e "\n✔️ Environment variables substituted successfully." | tee -a "$LOG_FILE"

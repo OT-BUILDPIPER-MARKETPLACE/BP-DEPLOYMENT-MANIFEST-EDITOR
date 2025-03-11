@@ -75,15 +75,10 @@ patchDeployment() {
 updateEnvVariables() {
     logInfoMessage "I'll update the environment variables in deployment manifests."
 
-    
+    YAML_DIR="/bp/data/k8s_manifest"
     JSON_FILE="/bp/data/deploy_stateless_app"
     ENV_FILE="/tmp/env_variables"
     LOG_FILE="/tmp/env_update.log"
-    export REPO_DIR=$(jq -r '.manifest_meta_data.manifest_git_repo.name' $JSON_FILE)
-    echo "REPO_DIR=${REPO_DIR}"
-
-    YAML_DIR="/bp/data/k8s_manifest"
-    # YAML_DIR="/bp/workspace/$REPO_DIR"
 
     logInfoMessage "Starting environment variable substitution..." | tee "$LOG_FILE"
     > "$ENV_FILE"
@@ -94,29 +89,6 @@ updateEnvVariables() {
     set -o allexport
     source "$ENV_FILE"
     set +o allexport
-
-    echo "the CODEBASE_DIR $CODEBASE_DIR"
-
-    cd /bp/data/k8s_manifest
-    tree /bp/data/
-    # echo "checking deployment dir..."
-    # sleep 30
-    # echo "Continuing after 30 seconds..."
-    # tree /bp/data/
-    # echo "checking deployment dir..."
-    # sleep 30
-    # echo "Continuing after 30 seconds..."
-    # tree /bp/data/
-    # echo "checking deployment dir..."
-    # sleep 30
-    # echo "Continuing after 30 seconds..."
-    # tree /bp/data/
-    # echo "checking deployment dir..."
-    # sleep 30
-    # echo "Continuing after 30 seconds..."
-    ls -ltr /bp/data/
-    ls -ltr /bp/data/k8s_manifest/
-    pwd
 
     # Extract list of YAML files to process
     jq -r '.manifest_meta_data.manifest_file_paths[]' "$JSON_FILE" | while read -r yaml_filename; do

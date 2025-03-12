@@ -86,13 +86,16 @@ updateEnvVariables() {
     # Extract environment variables
     jq -r '.addition_meta_data.environment_variables.envs_list[] | "\(.env_key)=\"\(.env_value)\""' "$JSON_FILE" >> "$ENV_FILE"
 
+    # Extract placeholders and store them in the same format
+    jq -r '.addition_meta_data.placeholders[] | "\(.key | gsub("\\$\\{";"") | gsub("\\}";""))=\"\(.value)\""' "$JSON_FILE" >> "$ENV_FILE"
+
     set -o allexport
     source "$ENV_FILE"
     set +o allexport
 
-    # Extract list of YAML files to process
-    jq -r '.manifest_meta_data.manifest_file_paths[]' "$JSON_FILE" | while read -r yaml_filename; do
-        yaml_file="$YAML_DIR/$yaml_filename"
+    # Process all YAML files in YAML_DIR
+    find "$YAML_DIR" -type f \( -name "*.yml" -o -name "*.yaml" \) | while read -r yaml_file; do
+        yaml_filename=$(basename "$yaml_file")
         TMP_FILE="${yaml_file}.tmp"
         BACKUP_FILE="${yaml_file}.backup"
 

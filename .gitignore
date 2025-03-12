@@ -1,3 +1,6 @@
 deployment.yaml
 security_context.yaml
 updated_deployment.yaml
+deployment_state_app
+source.json
+target.yaml

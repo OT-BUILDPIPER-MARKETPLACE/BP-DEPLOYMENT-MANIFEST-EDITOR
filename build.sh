@@ -86,6 +86,9 @@ updateEnvVariables() {
     # Extract environment variables
     jq -r '.addition_meta_data.environment_variables.envs_list[] | "\(.env_key)=\"\(.env_value)\""' "$JSON_FILE" >> "$ENV_FILE"
 
+    # Extract placeholders and store them in the same format
+    jq -r '.addition_meta_data.placeholders[] | "\(.key | gsub("\\$\\{";"") | gsub("\\}";""))=\"\(.value)\""' "$JSON_FILE" >> "$ENV_FILE"
+
     set -o allexport
     source "$ENV_FILE"
     set +o allexport

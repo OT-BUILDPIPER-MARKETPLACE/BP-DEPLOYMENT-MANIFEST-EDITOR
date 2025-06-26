@@ -73,33 +73,40 @@ function fetch_service_details() {
       DEPLOY_SERVICE_NAME=$(jq -r '.k8s_manifest[] | select(.k8s_manifest_type == "service") | .metadata.name' < /bp/data/deploy_stateless_app)
       echo "$DEPLOY_SERVICE_NAME"
     }
-
-    # Get the deployment service name
-    DEPLOY_SERVICE_NAME=`getDeploymentServiceName`
-    echo "Deployment service name: $DEPLOY_SERVICE_NAME"
-
-    # Set default suffixes if env_suffixes.txt does not exist
-    if [ -f $env_suffixes_file ]; then
-        ENV_SUFFIX_PATTERN=$(paste -sd'|' $env_suffixes_file)
-    else
-        ENV_SUFFIX_PATTERN="dev|prod|qa|staging|uat"
-    fi
-
+    
+    # Check if CODEBASE_DIR is not set or empty, use deployment service name
     if [ -z "$CODEBASE_DIR" ]; then
-        CODEBASE_DIR=$(echo "$DEPLOY_SERVICE_NAME" | sed -E "s/-($ENV_SUFFIX_PATTERN)(-.*)?\$//")
+        # Get the deployment service name
+        DEPLOY_SERVICE_NAME=$(getDeploymentServiceName)
+        CODEBASE_DIR=$(echo "$DEPLOY_SERVICE_NAME" | sed -E 's/-(dev|prod|qa|staging|uat)-.*$//')
         echo "CODEBASE_DIR was empty, using deployment service name: $CODEBASE_DIR"
     fi
-
-    # Try to match by bitbucketRepoName first
-    local service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
-
-    # If not found, fallback to match CODEBASE_DIR in deployment_name array
+    
+    # Try to match CODEBASE_DIR with repositories[]
+    service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
+    
+    # If not matched, fallback to value of git_repo from deployment env
     if [ -z "$service_data" ]; then
-        logInfoMessage "bitbucketRepoName match failed. Trying to match deployment_name array..."
-
-        service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.deployment_name!= null and (.deployment_name | split(",") | map(gsub("^\\s+|\\s+$"; "")) | index($CODEBASE_DIR)))' "$json_file")
+        echo "No matching repo for CODEBASE_DIR: $CODEBASE_DIR. Falling back to git_repo from deployment env."
+    
+        # Extract git_repo value from the container env
+        git_repo_value=$(jq -r '
+          .k8s_manifest[]
+          | select(.k8s_manifest_type == "deployment")
+          | .spec.template.spec.containers[]
+          | .env[]
+          | select(.name == "git_repo")
+          | .value
+        ' /bp/data/deploy_stateless_app)
+    
+        if [ -n "$git_repo_value" ]; then
+            CODEBASE_DIR="$git_repo_value"
+            echo "Using git_repo value as CODEBASE_DIR: $CODEBASE_DIR"
+            service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
+        fi
     fi
-
+    
+    # Final check if still not found
     if [ -z "$service_data" ]; then
         echo "Error: Service $CODEBASE_DIR not found in $json_file"
         return 1

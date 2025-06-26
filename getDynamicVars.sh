@@ -1,4 +1,5 @@
 source /opt/buildpiper/shell-functions/functions.sh
+source /opt/buildpiper/shell-functions/proxy-handling.sh
 
 # Function to clone the repository, extract details, and set environment variables
 function fetch_service_details() {
@@ -13,16 +14,37 @@ function fetch_service_details() {
         mkdir -p "$LOCAL_REPO_DIR" || { echo "Error: Failed to create directory $LOCAL_REPO_DIR."; return 1; }
     fi
 
-    # Clone the repository directly to the specific branch with a depth of 2
+    # Clone the repository with retry logic (3 attempts total)
     if [ ! -d "$LOCAL_REPO_DIR/.git" ]; then
         echo "Cloning repository $SOURCE_VARIABLE_REPO into $LOCAL_REPO_DIR on branch $APPLICATION_NAME with depth 2..."
 
-        # Run git clone and capture output and status
-        output=$(git clone --branch "$APPLICATION_NAME" --depth 2 "$SOURCE_VARIABLE_REPO" "$LOCAL_REPO_DIR" 2>&1)
-        clone_status=$?
+        attempt=1
+        max_attempts=3
+        wait_times=(0 30 60)
+
+        while [ $attempt -le $max_attempts ]; do
+            if [ $attempt -gt 1 ]; then
+                sleep_time=${wait_times[$((attempt-1))]}
+                echo "Retrying clone attempt $attempt after $sleep_time seconds..."
+                sleep "$sleep_time"
+            fi
+
+            echo "Attempt $attempt: Cloning..."
+            output=$(run_without_proxy_then_with_fallback git clone --branch "$APPLICATION_NAME" --depth 2 "$SOURCE_VARIABLE_REPO" "$LOCAL_REPO_DIR" 2>&1)
+            clone_status=$?
+
+            if [ $clone_status -eq 0 ]; then
+                echo "Clone successful on attempt $attempt."
+                break
+            else
+                echo "Clone attempt $attempt failed: $output"
+            fi
+
+            attempt=$((attempt + 1))
+        done
 
         if [ $clone_status -ne 0 ]; then
-            echo "Error: Cloning failed with exit code $clone_status. Output: $output"
+            echo "Error: Cloning failed after $max_attempts attempts."
             return 1
         fi
     else
@@ -34,6 +56,7 @@ function fetch_service_details() {
 
     # Path to the mavenrepos.json file
     local json_file="$LOCAL_REPO_DIR/mavenrepos.json"
+    local env_suffixes_file="$LOCAL_REPO_DIR/env_suffixes.txt"  # <-- Path for env suffixes file
     local yq_query_file="$LOCAL_REPO_DIR/deployment_patch.yq"  # <-- Path for yq query file
 
     # Check if mavenrepos.json exists
@@ -50,18 +73,40 @@ function fetch_service_details() {
       DEPLOY_SERVICE_NAME=$(jq -r '.k8s_manifest[] | select(.k8s_manifest_type == "service") | .metadata.name' < /bp/data/deploy_stateless_app)
       echo "$DEPLOY_SERVICE_NAME"
     }
-
-    # Get the deployment service name
-    DEPLOY_SERVICE_NAME=`getDeploymentServiceName`
-
-    # Check if CODEBASE_DIR is not set or empty, use getServiceName to get a default value
+    
+    # Check if CODEBASE_DIR is not set or empty, use deployment service name
     if [ -z "$CODEBASE_DIR" ]; then
+        # Get the deployment service name
+        DEPLOY_SERVICE_NAME=$(getDeploymentServiceName)
         CODEBASE_DIR=$(echo "$DEPLOY_SERVICE_NAME" | sed -E 's/-(dev|prod|qa|staging|uat)-.*$//')
         echo "CODEBASE_DIR was empty, using deployment service name: $CODEBASE_DIR"
     fi
-
-    local service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
-
+    
+    # Try to match CODEBASE_DIR with repositories[]
+    service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
+    
+    # If not matched, fallback to value of git_repo from deployment env
+    if [ -z "$service_data" ]; then
+        echo "No matching repo for CODEBASE_DIR: $CODEBASE_DIR. Falling back to git_repo from deployment env."
+    
+        # Extract git_repo value from the container env
+        git_repo_value=$(jq -r '
+          .k8s_manifest[]
+          | select(.k8s_manifest_type == "deployment")
+          | .spec.template.spec.containers[]
+          | .env[]
+          | select(.name == "git_repo")
+          | .value
+        ' /bp/data/deploy_stateless_app)
+    
+        if [ -n "$git_repo_value" ]; then
+            CODEBASE_DIR="$git_repo_value"
+            echo "Using git_repo value as CODEBASE_DIR: $CODEBASE_DIR"
+            service_data=$(jq -r --arg CODEBASE_DIR "$CODEBASE_DIR" '.repositories[] | select(.bitbucketRepoName == $CODEBASE_DIR)' "$json_file")
+        fi
+    fi
+    
+    # Final check if still not found
     if [ -z "$service_data" ]; then
         echo "Error: Service $CODEBASE_DIR not found in $json_file"
         return 1

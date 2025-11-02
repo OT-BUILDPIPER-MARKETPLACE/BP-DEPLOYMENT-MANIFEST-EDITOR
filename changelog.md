@@ -1,7 +1,3 @@
-Here’s your change log formatted in a table:  
-
----
-
 ### **Change Log for Docker Image: `registry.buildpiper.in/deployment-manifest-editor`**  
 
 | **Version** | **Release Date** | **Changes** |  
@@ -16,5 +12,6 @@ Here’s your change log formatted in a table:
 | **0.0.8** | *2025-03-11* | **Added:** Included `gettext`, `libintl`, `coreutils`, `diffutils` in `Dockerfile` for better logs. <br> **Improved:** Further optimized error handling, deployment file selection logic. <br> **Fixed:** Redundant `fetch_service_details` calls, unnecessary overwrites, improved handling of updated manifest files. |
 | **0.0.9** | *2025-03-11* | **Added:** Included `gettext`, `libintl`, `coreutils`, `diffutils` in `Dockerfile` for better logs. <br> **Improved:** Further optimized error handling, deployment file selection logic. <br> **Fixed:** Handling any file which need to be used for deployments. |
 | **0.1.0** | *2025-06-27* | **Improved:** Enhanced logic in `getDynamicVars.sh` to handle `CODEBASE_DIR` resolution using the deployment's `git_repo` value if no direct match is found in `repositories[]`. <br> **Fixed:** Fallback mechanism for `CODEBASE_DIR` ensures correct service data extraction even when the deployment name does not directly match repository names. <br> |
+| **0.1.0-nr** | *2025-11-02*     | **Refactored:** Dockerfile to be fully Alpine-compatible. Replaced `groupadd`/`useradd` with `addgroup` and `adduser` for lightweight build and faster layer creation. <br> **Added:** Ownership enforcement with `COPY --chown=buildpiper:buildpiper` ensuring all files and scripts are owned by `buildpiper`. <br> **Improved:** Fixed `ENV` syntax warnings (`ENV key=value` format). Added non-root execution with `USER buildpiper` for better container security. <br> **Fixed:** Build failure caused by missing `groupadd` in Alpine base image. |
 
 ---

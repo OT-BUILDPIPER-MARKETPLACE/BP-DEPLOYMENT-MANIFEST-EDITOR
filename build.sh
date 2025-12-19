@@ -3,6 +3,7 @@
 source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 source getDynamicVars.sh
+source labelGenerator.sh
 
 TASK_STATUS=0
 

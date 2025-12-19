@@ -11,7 +11,7 @@ CANARY_STATUS=`canary_status`
 canary_generator(){
     # check canary status available or not
 
-    if [ -n $CANARY_STATUS ]; then
+    if [ -z $CANARY_STATUS ]; then
         echo "canary status not available!! hence exiting the canary_generator process"
         exit 1
     else
@@ -20,7 +20,7 @@ canary_generator(){
 
     # if canary is true call canaryTrafficManager else call rollingTrafficManager
 
-    if ["$CANARY_STATUS" == "true"]; then
+    if [ "$CANARY_STATUS" == "true" ]; then
         echo "We will using the canaryTrafficManager process for traffic routing" 
         canaryTrafficManager
     else
@@ -69,20 +69,17 @@ rollingTrafficManager(){
 
     BASELINE_FILE="baseline-service.yaml"
 
-    if [ -f "$MAIN_SERVICE_FILE" && -f "$BASELINE_FILE"]; then
+    if [ -f "$MAIN_SERVICE_FILE" ]&& [ -f "$BASELINE_FILE" ]; then
         echo "Both files exist. Proceeding with the rolling traffic manager process."
     else
         cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
         yq -i "
-            .metadata.labels.${LABEL_KEY} = \"${LABEL_VALUE}\" |
-            .spec.selector.${LABEL_KEY} = \"${LABEL_VALUE}\"
+            .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+            .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
             " "$BASELINE_FILE"
     fi
 }
-
-
-
 
 patchDeployment() {
     logInfoMessage "I'll patch the deployment file with the provided details."

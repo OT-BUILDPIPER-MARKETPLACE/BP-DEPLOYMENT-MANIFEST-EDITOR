@@ -6,6 +6,84 @@ source getDynamicVars.sh
 
 TASK_STATUS=0
 
+CANARY_STATUS=`canary_status`
+
+canary_generator(){
+    # check canary status available or not
+
+    if [ -n $CANARY_STATUS ]; then
+        echo "canary status not available!! hence exiting the canary_generator process"
+        exit 1
+    else
+        echo "Canary Status:- ${CANARY_STATUS}"
+    fi 
+
+    # if canary is true call canaryTrafficManager else call rollingTrafficManager
+
+    if ["$CANARY_STATUS" == "true"]; then
+        echo "We will using the canaryTrafficManager process for traffic routing" 
+        canaryTrafficManager
+    else
+        echo "We will using the rollingTrafficManager process for traffic routing"
+        rollingTrafficManager
+    fi
+
+}
+
+canaryTrafficManager(){
+    CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+
+    #copying the main service file
+    BASELINE_FILE="base-line-service.yaml"
+    CANARY_FILE="canary-service.yaml"
+
+    label_generator 
+
+    # Check if the source file exists
+    if [ -f "$MAIN_SERVICE_FILE" ]; then
+    # Copy the source file to the baseline file
+        cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
+        yq -i "
+            .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+            .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
+            " "$BASELINE_FILE"
+
+    # Copy the source file to the canary file
+        cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
+        yq -i "
+            .metadata.labels.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\" |
+            .spec.selector.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\"
+            " "$CANARY_FILE"
+    else
+        echo "Error: Source file $MAIN_SERVICE_FILE not found."
+        exit 1
+    fi
+}
+
+rollingTrafficManager(){
+    CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+
+    BASELINE_FILE="baseline-service.yaml"
+
+    if [ -f "$MAIN_SERVICE_FILE" && -f "$BASELINE_FILE"]; then
+        echo "Both files exist. Proceeding with the rolling traffic manager process."
+    else
+        cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
+        yq -i "
+            .metadata.labels.${LABEL_KEY} = \"${LABEL_VALUE}\" |
+            .spec.selector.${LABEL_KEY} = \"${LABEL_VALUE}\"
+            " "$BASELINE_FILE"
+    fi
+}
+
+
+
+
 patchDeployment() {
     logInfoMessage "I'll patch the deployment file with the provided details."
     # Main logic to check conditions and call fetch_service_details

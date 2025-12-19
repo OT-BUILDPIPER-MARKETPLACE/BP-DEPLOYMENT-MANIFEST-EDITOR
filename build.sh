@@ -70,6 +70,8 @@ rollingTrafficManager(){
 
     BASELINE_FILE="baseline-service.yaml"
 
+    label_generator
+
     if [ -f "$MAIN_SERVICE_FILE" ]&& [ -f "$BASELINE_FILE" ]; then
         echo "Both files exist. Proceeding with the rolling traffic manager process."
     else
@@ -209,6 +211,8 @@ if [[ "$ACTION_TYPE" == "patch" ]]; then
     patchDeployment
 elif [[ "$ACTION_TYPE" == "update" ]]; then
     updateEnvVariables
+elif [[ "$ACTION_TYPE" == "canary" ]]; then
+    canary_generator
 else
     logErrorMessage "❌ ERROR: Invalid ACTION_TYPE '$ACTION_TYPE'. Please set it to 'patch' or 'update'."
     TASK_STATUS=1

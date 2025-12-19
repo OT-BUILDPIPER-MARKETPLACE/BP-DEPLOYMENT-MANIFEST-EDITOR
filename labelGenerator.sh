@@ -17,11 +17,11 @@ label_generator(){
     fi
 
     # Labels
-    BASELINE_LABEL="version"
-    CANARY_LABEL="version"
+    export BASELINE_LABEL="version"
+    export CANARY_LABEL="version"
 
     # Label values (string concatenation)
-    BASELINE_LABEL_VALUE="${prev_version}${deployment_name}"
-    CANARY_LABEL_VALUE="${version}${deployment_name}"
+    export BASELINE_LABEL_VALUE="${prev_version}-${deployment_name}"
+    export CANARY_LABEL_VALUE="${version}-${deployment_name}"
 }
 

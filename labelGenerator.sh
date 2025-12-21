@@ -1,27 +1,25 @@
 #!/bin/bash
+source /opt/buildpiper/shell-functions/getDataFile.sh 
 
-summary_file="/bp/execution_dir/${GLOBAL_TASK_ID}/summary.json"
+# summary_file="/bp/execution_dir/${GLOBAL_TASK_ID}/summary.json"
+
+# deployment_name=`getDeploymentName`
+
+# canary_deployment_name=`canary_deployment_name`
 
 label_generator(){
-    if [ -f "$summary_file" ]; then
-        echo "$summary_file exists. Fetching data..."
-
-        # Fetch values from JSON
-        deployment_name=$(jq -r '.deployment_name' "$summary_file")
-        prev_version=$(jq -r '.previous_version' "$summary_file")
-        version=$(jq -r '.current_version' "$summary_file")
-
+    if [ -z "$(`canary_status`)" ]; then
+        echo "canary status does not exists. Hence it is not a pipeline trigger."
+        export BASELINE_LABEL="version"
+        export BASELINE_LABEL_VALUE=`getDeploymentName`
     else
-        echo "$summary_file does not exist. Cannot fetch data."
-        exit 1
+       # Labels
+        export BASELINE_LABEL="version"
+        export CANARY_LABEL="version" 
+
+        # Label values (string concatenation)
+        export BASELINE_LABEL_VALUE=`getDeploymentName`
+        export CANARY_LABEL_VALUE=`canary_deployment_name`
     fi
-
-    # Labels
-    export BASELINE_LABEL="version"
-    export CANARY_LABEL="version"
-
-    # Label values (string concatenation)
-    export BASELINE_LABEL_VALUE="${prev_version}-${deployment_name}"
-    export CANARY_LABEL_VALUE="${version}-${deployment_name}"
 }
 

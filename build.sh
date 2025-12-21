@@ -4,20 +4,42 @@ source /opt/buildpiper/shell-functions/functions.sh
 source /opt/buildpiper/shell-functions/log-functions.sh
 source getDynamicVars.sh
 source labelGenerator.sh
+source /opt/buildpiper/shell-functions/getDataFile.sh 
 
 TASK_STATUS=0
 
 CANARY_STATUS=`canary_status`
 
+deployment_editor(){
+
+    deployment_name=`getDeploymentName`
+
+    CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
+
+    logInfoMessage "I'll update the labels of the deployments available at [$CODEBASE_LOCATION]"
+
+    if [ ! -f "$DEPLOYMENT_FILE" ]; then
+        logErrorMessage "Deployment file not found at $DEPLOYMENT_FILE"
+        exit 1
+    fi
+
+    logInfoMessage "Adding the label to the deployment file"
+
+    yq e -i ".metadata.labels.version = \"$deployment_name\"" "$DEPLOYMENT_FILE"
+
+    
+}
+
 canary_generator(){
     # check canary status available or not
 
-    if [ -z $CANARY_STATUS ]; then
-        echo "canary status not available!! hence exiting the canary_generator process"
-        exit 1
-    else
-        echo "Canary Status:- ${CANARY_STATUS}"
-    fi 
+    # if [ -z $CANARY_STATUS ]; then
+    #     echo "canary status not available!! hence exiting the canary_generator process"
+    #     exit 1
+    # else
+    #     echo "Canary Status:- ${CANARY_STATUS}"
+    # fi 
 
     # if canary is true call canaryTrafficManager else call rollingTrafficManager
 
@@ -36,8 +58,8 @@ canaryTrafficManager(){
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
 
     #copying the main service file
-    BASELINE_FILE="base-line-service.yaml"
-    CANARY_FILE="canary-service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline-routing-service.yaml"
+    CANARY_FILE="$CODEBASE_LOCATION/canary-routing-service.yaml"
 
     label_generator 
 
@@ -68,7 +90,9 @@ rollingTrafficManager(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
 
-    BASELINE_FILE="baseline-service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline-routing-service.yaml"
+
+    deployment_editor
 
     label_generator
 

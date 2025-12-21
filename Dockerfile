@@ -22,15 +22,18 @@ RUN mkdir -p \
     /opt/maven && \
     chown -R buildpiper:buildpiper /src /bp /opt /usr /tmp
 
-USER buildpiper
-WORKDIR /src
+# USER buildpiper
+# WORKDIR /src
 
 # Install required packages
 RUN apk add --no-cache --upgrade bash jq yq git gettext libintl coreutils diffutils
 
+USER buildpiper
+WORKDIR /src
+
 # Copy scripts and change ownership
 COPY --chown=buildpiper:buildpiper build.sh .
-COPY --chown=buildpiper:buildpiper getDynamicVars.sh /.
+COPY --chown=buildpiper:buildpiper getDynamicVars.sh .
 COPY --chown=buildpiper:buildpiper BP-BASE-SHELL-STEPS /opt/buildpiper/shell-functions/
 COPY --chown=buildpiper:buildpiper labelGenerator.sh .
 

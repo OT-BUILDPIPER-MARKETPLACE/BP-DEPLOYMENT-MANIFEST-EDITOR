@@ -8,22 +8,25 @@ source /opt/buildpiper/shell-functions/getDataFile.sh
 # canary_deployment_name=`canary_deployment_name`
 
 function makeName(){
-    echo '$1$2'
+    echo "$1$2"
 }
 
 label_generator(){
-    if [ -z "$(`canary_status`)" ]; then
+    if [ -z "$(canary_status)" ]; then
         echo "canary status does not exists. Hence it is not a pipeline trigger."
         export BASELINE_LABEL="version"
         export BASELINE_LABEL_VALUE=$(getVersion)
+        export BASELINE_NAME=$(makeName $(getVersion) baseline)
     else
        # Labels
         export BASELINE_LABEL="version"
         export CANARY_LABEL="version"
 
         # Label values (string concatenation)
-        export BASELINE_LABEL_VALUE=`getpreviousVersion`
-        export CANARY_LABEL_VALUE=`getVersion`
+        export BASELINE_LABEL_VALUE=$(getpreviousVersion)
+        export CANARY_LABEL_VALUE=$(getVersion)
+        export BASELINE_NAME=$(makeName $(getpreviousVersion) baseline)
+        export CANARY_NAME=$(makeName $(getVersion) canary)
     fi
 }
 

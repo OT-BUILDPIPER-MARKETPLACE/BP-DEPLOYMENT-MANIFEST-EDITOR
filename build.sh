@@ -9,57 +9,118 @@ source /opt/buildpiper/shell-functions/getDataFile.sh
 TASK_STATUS=0
 
 CANARY_STATUS=`canary_status`
+APPLICATION_ID=`application_id`
+PIPELINE_ID=`pipeline_id`
+PIPELINE_EXECUTION_ID=`pipeline_execution_id`
 
-deployment_editor(){
 
-    deployment_name=`getDeploymentName`
 
-    CODEBASE_LOCATION="/bp/data/k8s_manifest"
-    DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
+# deployment_canary_editor(){
+#     deployment_name=`baseline_deployment_name`
+#     deployment_canary_name=`canary_deployment_name`
 
-    logInfoMessage "I'll update the labels of the deployments available at [$CODEBASE_LOCATION]"
+#     CODEBASE_LOCATION="/bp/data/k8s_manifest"
+#     BASELINE_DEPLOYMENT_FILE="$CODEBASE_LOCATION/baseline_deployment.yaml"
+#     CANARY_DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
 
-    if [ ! -f "$DEPLOYMENT_FILE" ]; then
-        logErrorMessage "Deployment file not found at $DEPLOYMENT_FILE"
-        exit 1
-    fi
+#     logInfoMessage "I'll update the labels of the canary deployment and baseline deployment available at [$CODEBASE_LOCATION]"
 
-    logInfoMessage "Adding the label to the deployment file"
+#     if [ ! -f "$BASELINE_DEPLOYMENT_FILE" ] && [ -f "$CANARY_DEPLOYMENT_FILE"]; then
+#         logErrorMessage "Both Canary and Baseline Deployment files not found at $CODEBASE_LOCATION"
+#         exit 1
+#     fi
 
-    yq e -i ".metadata.labels.version = \"$deployment_name\"" "$DEPLOYMENT_FILE"
+#     logInfoMessage "Adding the label in the baseline and canary deployment file"
 
-    
-}
+#     yq e -i ".metadata.labels.version = \"$deployment_name\"" "$BASELINE_DEPLOYMENT_FILE"
+#     yq e -i ".spec.template.metadata.labels.version = \"$deployment_name\"" "$BASELINE_DEPLOYMENT_FILE"
+#     yq e -i ".spec.selector.matchLabels.version = \"$deployment_name\"" "$BASELINE_DEPLOYMENT_FILE"
+#     yq e -i ".metadata.labels.version = \"$deployment_canary_name\"" "$CANARY_DEPLOYMENT_FILE"
+#     yq e -i ".spec.template.metadata.labels.version = \"$deployment_canary_name\"" "$CANARY_DEPLOYMENT_FILE"
+#     yq e -i ".spec.selector.matchLabels.version = \"$deployment_canary_name\"" "$CANARY_DEPLOYMENT_FILE"
+
+# }
+
+# deployment_rolling_editor(){
+#     deployment_name=`getDeploymentName`
+
+#     CODEBASE_LOCATION="/bp/data/k8s_manifest"
+#     DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
+
+#     logInfoMessage "I'll update the labels of the deployments available at [$CODEBASE_LOCATION]"
+
+#     if [ ! -f "$DEPLOYMENT_FILE" ]; then
+#         logErrorMessage "Deployment file not found at $DEPLOYMENT_FILE"
+#         exit 1
+#     fi
+
+#     logInfoMessage "Adding the label to the deployment file"
+
+#     yq e -i ".metadata.labels.version = \"$deployment_name\"" "$DEPLOYMENT_FILE"
+#     yq e -i ".spec.template.metadata.labels.version = \"$deployment_name\"" "$DEPLOYMENT_FILE"
+#     yq e -i ".spec.selector.matchLabels.version = \"$deployment_name\"" "$DEPLOYMENT_FILE"
+
+# }
 
 canary_generator(){
-    # check canary status available or not
 
-    # if [ -z $CANARY_STATUS ]; then
-    #     echo "canary status not available!! hence exiting the canary_generator process"
-    #     exit 1
-    # else
-    #     echo "Canary Status:- ${CANARY_STATUS}"
-    # fi 
+    logDebugMessage "Canary Status:- ${CANARY_STATUS}"
 
-    # if canary is true call canaryTrafficManager else call rollingTrafficManager
-
-    if [ "$CANARY_STATUS" == "true" ]; then
-        echo "We will using the canaryTrafficManager process for traffic routing" 
-        canaryTrafficManager
+    if [[ -n "$APPLICATION_ID" && -n "$PIPELINE_ID" && -n "$PIPELINE_EXECUTION_ID" ]]; then
+        if [ "$CANARY_STATUS" == "true" ]; then
+            echo "We will using the canaryTrafficManager process for traffic routing" 
+            canaryTrafficManager
+        else 
+            echo "we will be using the rolling traffic manger process for traffic routing"
+            rollingTrafficManager
+        fi
     else
-        echo "We will using the rollingTrafficManager process for traffic routing"
+        echo "we will be using the rolling traffic manager process for the traffic routing"
         rollingTrafficManager
     fi
 
+    pod_shift_percentage=`canary_deployment_pod_shift_percentage`
+    
+    if [ -z $pod_shift_percentage]; then
+        echo "pod shift percentage is not available hence exiting..."
+        if [ -n "$pod_shift_percentage" ] && [ "$pod_shift_percentage" -eq 100 ]; then
+            echo "canary is in 100 percentage stage therefore switching both services to same label"
+            pod_shift_service_editor
+        fi
+    fi
+
+
 }
 
+pod_shift_service_editor(){
+    canary_deployment_name=`canary_deployment_name`
+    BASELINE_SERVICE_FILE="/bp/data/k8s_manifest/baseline_routing_service.yaml"
+    CANARY_SERVICE_FILE="/bp/data/k8s_manifest/canary_routing_service.yaml"
+    
+    if [! -f "$BASELINE_SERVICE_FILE"] && [! -f "$CANARY_SERVICE_FILE" ]; then 
+        echo "service does not exists"
+        exit 1
+    fi
+
+    BASELINE_LABEL="version"
+    BASELINE_LABEL_VALUE="$canary_deployment_name"
+
+    yq -i "
+        .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+        .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
+        " "$BASELINE_SERVICE_FILE" 
+
+}
 canaryTrafficManager(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
 
     #copying the main service file
-    BASELINE_FILE="$CODEBASE_LOCATION/baseline-routing-service.yaml"
-    CANARY_FILE="$CODEBASE_LOCATION/canary-routing-service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
+    CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
+
+    
+    #deployment_canary_editor
 
     label_generator 
 
@@ -68,18 +129,21 @@ canaryTrafficManager(){
     # Copy the source file to the baseline file
         cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
+
         yq -i "
-            .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
-            .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
-            " "$BASELINE_FILE"
+        .metadata.name = \"${BASELINE_LABEL_VALUE}-svc-routing\" |
+        .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+        .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
+        " "$BASELINE_FILE"
 
     # Copy the source file to the canary file
         cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
         yq -i "
-            .metadata.labels.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\" |
-            .spec.selector.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\"
-            " "$CANARY_FILE"
+        .metadata.name = \"${CANARY_LABEL_VALUE}-svc-routing\" |
+        .metadata.labels.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\" |
+        .spec.selector.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\"
+        " "$CANARY_FILE"
     else
         echo "Error: Source file $MAIN_SERVICE_FILE not found."
         exit 1
@@ -90,9 +154,9 @@ rollingTrafficManager(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
 
-    BASELINE_FILE="$CODEBASE_LOCATION/baseline-routing-service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
 
-    deployment_editor
+    #deployment_rolling_editor
 
     label_generator
 
@@ -102,9 +166,10 @@ rollingTrafficManager(){
         cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
         yq -i "
-            .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
-            .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
-            " "$BASELINE_FILE"
+        .metadata.name = \"${BASELINE_LABEL_VALUE}-svc-routing\" |
+        .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+        .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
+        " "$BASELINE_FILE"
     fi
 }
 

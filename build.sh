@@ -65,6 +65,7 @@ PIPELINE_EXECUTION_ID=`pipeline_execution_id`
 canary_generator(){
 
     logDebugMessage "Canary Status:- ${CANARY_STATUS}"
+    # echo "rrr"
 
     if [[ -n "$APPLICATION_ID" && -n "$PIPELINE_ID" && -n "$PIPELINE_EXECUTION_ID" ]]; then
         if [ "$CANARY_STATUS" == "true" ]; then
@@ -78,39 +79,57 @@ canary_generator(){
         echo "we will be using the rolling traffic manager process for the traffic routing"
         rollingTrafficManager
     fi
-
+    # echo "rrnnnn"
     pod_shift_percentage=`canary_deployment_pod_shift_percentage`
-    
-    if [ -z $pod_shift_percentage]; then
+    # echo "ddhdjddj"
+    echo $pod_shift_percentage
+    if [ -z "$pod_shift_percentage" ]; then
         echo "pod shift percentage is not available hence exiting..."
-        if [ -n "$pod_shift_percentage" ] && [ "$pod_shift_percentage" -eq 100 ]; then
-            echo "canary is in 100 percentage stage therefore switching both services to same label"
-            pod_shift_service_editor
-        fi
+        exit 1
+    elif [ "$pod_shift_percentage" == '100' ]; then
+        echo "canary is in 100 percentage stage therefore switching both services to same label"
+        pod_shift_service_editor "true"
     fi
+    # echo "ssjsjs"
 
+    cd /bp/data/k8s_manifest
+
+    git add .
+    git commit -m "canary traffic files commited to repo"
 
 }
+
+
 
 pod_shift_service_editor(){
     canary_deployment_name=`canary_deployment_name`
     BASELINE_SERVICE_FILE="/bp/data/k8s_manifest/baseline_routing_service.yaml"
     CANARY_SERVICE_FILE="/bp/data/k8s_manifest/canary_routing_service.yaml"
     
-    if [! -f "$BASELINE_SERVICE_FILE"] && [! -f "$CANARY_SERVICE_FILE" ]; then 
-        echo "service does not exists"
-        exit 1
-    fi
 
     BASELINE_LABEL="version"
-    BASELINE_LABEL_VALUE="$canary_deployment_name"
+    BASELINE_LABEL_VALUE="baseline"
+    echo $1
 
     yq -i "
-        .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
-        .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
-        " "$BASELINE_SERVICE_FILE" 
+    .metadata.labels.${BASELINE_LABEL} = \"${CANARY_LABEL_VALUE}\" |
+    .spec.selector.${BASELINE_LABEL} = \"${CANARY_LABEL_VALUE}\"
+    " "$BASELINE_SERVICE_FILE" 
+
 
 }
+
+function remove_old_routing_files(){
+    CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    OLD_BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service_baseline.yaml"   
+ 
+
+    if [ -f "$OLD_BASELINE_FILE" ]; then
+        rm "$OLD_BASELINE_FILE"
+        echo "Removed old file: $OLD_BASELINE_FILE"
+    fi
+}
+
 canaryTrafficManager(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
@@ -119,7 +138,9 @@ canaryTrafficManager(){
     BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
     CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
 
-    
+    #remove old routing files
+    remove_old_routing_files
+
     #deployment_canary_editor
 
     label_generator 
@@ -131,7 +152,7 @@ canaryTrafficManager(){
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
 
         yq -i "
-        .metadata.name = \"${BASELINE_LABEL_VALUE}-svc-routing\" |
+        .metadata.name = \"baseline-svc-routing\" |
         .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
         .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
         " "$BASELINE_FILE"
@@ -140,7 +161,7 @@ canaryTrafficManager(){
         cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
         yq -i "
-        .metadata.name = \"${CANARY_LABEL_VALUE}-svc-routing\" |
+        .metadata.name = \"canary-svc-routing\" |
         .metadata.labels.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\" |
         .spec.selector.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\"
         " "$CANARY_FILE"
@@ -156,6 +177,19 @@ rollingTrafficManager(){
 
     BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
 
+    
+
+    # DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
+
+    # CURRENT_DEPLOYMENT_NAME=$(yq e '.metadata.name' "$DEPLOYMENT_FILE")
+
+    # if [ -z "$CURRENT_DEPLOYMENT_NAME" ]; then
+    #     echo "Error: Deployment name not found in $DEPLOYMENT_FILE."
+    #     exit 1
+    # fi
+
+    # echo "Current deployment name: $CURRENT_DEPLOYMENT_NAME"
+
     #deployment_rolling_editor
 
     label_generator
@@ -166,11 +200,53 @@ rollingTrafficManager(){
         cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
         yq -i "
-        .metadata.name = \"${BASELINE_LABEL_VALUE}-svc-routing\" |
+        .metadata.name = \"baseline-svc-routing\" |
         .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
         .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
         " "$BASELINE_FILE"
     fi
+
+
+    # CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    # MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+    # BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
+    # DEPLOYMENT_FILE="$CODEBASE_LOCATION/deployment.yaml"
+
+    # CURRENT_DEPLOYMENT_NAME=$(yq e '.metadata.name' "$DEPLOYMENT_FILE")
+
+    # if [ -z "$CURRENT_DEPLOYMENT_NAME" ]; then
+    #     echo "Error: Deployment name not found in $DEPLOYMENT_FILE."
+    #     exit 1
+    # fi
+
+    # echo "Current deployment name: $CURRENT_DEPLOYMENT_NAME"
+
+    # # -------------------------------------------------
+    # # Skip baseline generation if deployment is versioned (starts with v-)
+    # # -------------------------------------------------
+    # if [[ "$CURRENT_DEPLOYMENT_NAME" =~ ^v- ]]; then
+    #     echo "Versioned deployment detected ($CURRENT_DEPLOYMENT_NAME). Skipping baseline routing generation."
+    #     exit 0
+    # fi
+
+    # # -------------------------------------------------
+    # # Non-versioned deployment → generate baseline routing
+    # # -------------------------------------------------
+    # label_generator
+
+    # if [ -f "$MAIN_SERVICE_FILE" ] && [ -f "$BASELINE_FILE" ]; then
+    #     echo "Both files exist. Proceeding with the rolling traffic manager process."
+    # else
+    #     cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
+    #     echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
+
+    #     yq -i "
+    #     .metadata.name = \"baseline-svc-routing\" |
+    #     .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
+    #     .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
+    #     " "$BASELINE_FILE"
+    # fi
+
 }
 
 patchDeployment() {

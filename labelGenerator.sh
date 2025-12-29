@@ -19,14 +19,14 @@ extractVersionFromDeployment() {
 
 label_generator_rolling(){
     local extracted_version
-    extracted_version=$(extractVersionFromDeployment "$deployment_name")
+    extracted_version=$(get_version)
 
     export BASELINE_LABEL="version"
 
     if [ -z "$extracted_version" ]; then
-        export BASELINE_LABEL_VALUE="baseline"
+        export BASELINE_LABEL_VALUE="v0"
     else
-        export BASELINE_LABEL_VALUE="${extracted_version}baseline"
+        export BASELINE_LABEL_VALUE="${extracted_version}"
     fi
 }
 
@@ -34,24 +34,24 @@ label_generator_canary() {
     local canary_extracted_version
     local baseline_extracted_version
 
-    canary_extracted_version=$(extractVersionFromDeployment "$canary_deployment_name")
-    baseline_extracted_version=$(extractVersionFromDeployment "$baseline_deployment_name")
+    canary_extracted_version=$(get_version)
+    baseline_extracted_version=$(get_previous_version)
 
     export BASELINE_LABEL="version"
     export CANARY_LABEL="version"
 
     # Baseline label value
     if [ -z "$baseline_extracted_version" ]; then
-        export BASELINE_LABEL_VALUE="baseline"
+        export BASELINE_LABEL_VALUE="v0"
     else
-        export BASELINE_LABEL_VALUE="${baseline_extracted_version}baseline"
+        export BASELINE_LABEL_VALUE="${baseline_extracted_version}"
     fi
 
     # Canary label value
     if [ -z "$canary_extracted_version" ]; then
-        export CANARY_LABEL_VALUE="canary"
+        export CANARY_LABEL_VALUE="v0"
     else
-        export CANARY_LABEL_VALUE="${canary_extracted_version}canary"
+        export CANARY_LABEL_VALUE="${canary_extracted_version}"
     fi
 }
 
@@ -70,6 +70,3 @@ label_generator(){
         label_generator_rolling
   fi
 }
-
-
-

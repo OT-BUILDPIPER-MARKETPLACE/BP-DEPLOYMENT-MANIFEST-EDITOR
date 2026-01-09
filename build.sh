@@ -65,12 +65,15 @@ PIPELINE_EXECUTION_ID=`pipeline_execution_id`
 canary_generator(){
 
     logDebugMessage "Canary Status:- ${CANARY_STATUS}"
-    # echo "rrr"
-
+    pod_shift_percentage=`canary_deployment_pod_shift_percentage`
+    logDebugMessage "Pod shift percentage: $pod_shift_percentage"
     if [[ -n "$APPLICATION_ID" && -n "$PIPELINE_ID" && -n "$PIPELINE_EXECUTION_ID" ]]; then
-        if [ "$CANARY_STATUS" == "true" ]; then
+        if [ "$CANARY_STATUS" == "true" ] && [ "$pod_shift_percentage" != '100' ]; then
             echo "We will using the canaryTrafficManager process for traffic routing" 
             canaryTrafficManager
+        elif [ "$CANARY_STATUS" == "true" ] && [ "$pod_shift_percentage" == '100' ]; then
+            echo "canary is in 100 percentage stage therefore switching both services to same label"
+            pod_shift_service_editor "true"
         else 
             echo "we will be using the rolling traffic manger process for traffic routing"
             rollingTrafficManager
@@ -79,55 +82,118 @@ canary_generator(){
         echo "we will be using the rolling traffic manager process for the traffic routing"
         rollingTrafficManager
     fi
-    # echo "rrnnnn"
-    pod_shift_percentage=`canary_deployment_pod_shift_percentage`
-    # echo "ddhdjddj"
-    echo $pod_shift_percentage
-    if [ -z "$pod_shift_percentage" ]; then
-        echo "pod shift percentage is not available hence exiting..."
-        exit 1
-    elif [ "$pod_shift_percentage" == '100' ]; then
-        echo "canary is in 100 percentage stage therefore switching both services to same label"
-        pod_shift_service_editor "true"
-    fi
-    # echo "ssjsjs"
-
-    cd /bp/data/k8s_manifest
-
-    git add .
-    git commit -m "canary traffic files commited to repo"
-
 }
 
-
-
 pod_shift_service_editor(){
-    canary_deployment_name=`canary_deployment_name`
-    BASELINE_SERVICE_FILE="/bp/data/k8s_manifest/baseline_routing_service.yaml"
-    CANARY_SERVICE_FILE="/bp/data/k8s_manifest/canary_routing_service.yaml"
+
+    CURRENT_VERSION=$(get_version)
+
+    logInfoMessage "Current Version is :- $CURRENT_VERSION"
+
+    CODEBASE_LOCATION="/bp/data/k8s_manifest"
+    MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
+    CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
+
+    canary_parent_global_task_id=`get_canary_parent_global_task_id`
+
+    remove_old_routing_files
     
+    label_generator
+    # Check if the source file exists
+    if [ -f "$MAIN_SERVICE_FILE" ]; then
+    # Copy the source file to the baseline file
+        cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
 
-    BASELINE_LABEL="version"
-    BASELINE_LABEL_VALUE="baseline"
-    echo $1
+        # CANARY_LABEL_VALUE
 
-    yq -i "
-    .metadata.labels.${BASELINE_LABEL} = \"${CANARY_LABEL_VALUE}\" |
-    .spec.selector.${BASELINE_LABEL} = \"${CANARY_LABEL_VALUE}\"
-    " "$BASELINE_SERVICE_FILE" 
+        yq -i "
+        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.labels.${BASELINE_LABEL} = \"${CURRENT_VERSION}\" |
+        .spec.selector.${BASELINE_LABEL} = \"${CURRENT_VERSION}\"
+        " "$BASELINE_FILE"
 
+    # Copy the source file to the canary file
+        cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
+        yq -i "
+        .metadata.name = \"canary-svc-routing\" |
+        .metadata.labels.${CANARY_LABEL} = \"${CURRENT_VERSION}\" |
+        .spec.selector.${CANARY_LABEL} = \"${CURRENT_VERSION}\"
+        " "$CANARY_FILE"
+    else
+        echo "Error: Source file $MAIN_SERVICE_FILE not found."
+        exit 1
+    fi
 
+    logInfoMessage "Adding the files to the git"
+
+    cd "$CODEBASE_LOCATION"
+
+    git add .
+
+    git commit -m "canary traffic files commited to repo"
+
+    logInfoMessage "canary_parent_global_task_id: $canary_parent_global_task_id"
+
+    # cd "$CODEBASE_LOCATION"
+
+    #copying the main service file
+    MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+    BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
+    CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
+
+    git checkout "$canary_parent_global_task_id"
+    echo "Checked out to branch: $canary_parent_global_task_id"
+
+    # Check if the source file exists
+    if [ -f "$MAIN_SERVICE_FILE" ]; then
+    # Copy the source file to the baseline file
+        cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
+
+        yq -i "
+        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.labels.${BASELINE_LABEL} = \"${CURRENT_VERSION}\" |
+        .spec.selector.${BASELINE_LABEL} = \"${CURRENT_VERSION}\"
+        " "$BASELINE_FILE"
+
+    # Copy the source file to the canary file
+        cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
+        echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
+        yq -i "
+        .metadata.name = \"canary-svc-routing\" |
+        .metadata.labels.${CANARY_LABEL} = \"${CURRENT_VERSION}\" |
+        .spec.selector.${CANARY_LABEL} = \"${CURRENT_VERSION}\"
+        " "$CANARY_FILE"
+    else
+        echo "Error: Source file $MAIN_SERVICE_FILE not found."
+        exit 1
+    fi
+    logInfoMessage "commit the files to the checkout branch"
+    cd "$CODEBASE_LOCATION"
+    git add "$BASELINE_FILE" "$CANARY_FILE"
+    git commit -m "canary traffic files commited to repo"
 }
 
 function remove_old_routing_files(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
-    OLD_BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service_baseline.yaml"   
+    OLD_BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service_baseline.yaml" 
+    OLD_CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service_baseline.yaml" 
  
 
     if [ -f "$OLD_BASELINE_FILE" ]; then
         rm "$OLD_BASELINE_FILE"
         echo "Removed old file: $OLD_BASELINE_FILE"
     fi
+    
+    if [ -f "$OLD_CANARY_FILE" ]; then
+        rm "$OLD_CANARY_FILE"
+        echo "Removed old file: $OLD_CANARY_FILE"
+    fi
+
+    logInfoMessage "Removed old routing files"
 }
 
 canaryTrafficManager(){
@@ -169,6 +235,9 @@ canaryTrafficManager(){
         echo "Error: Source file $MAIN_SERVICE_FILE not found."
         exit 1
     fi
+    cd /bp/data/k8s_manifest
+    git add .
+    git commit -m "canary traffic files commited to repo"
 }
 
 rollingTrafficManager(){
@@ -205,6 +274,11 @@ rollingTrafficManager(){
         .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
         " "$BASELINE_FILE"
     fi
+
+    cd /bp/data/k8s_manifest
+
+    git add .
+    git commit -m "canary traffic files commited to repo"
 
 
     # CODEBASE_LOCATION="/bp/data/k8s_manifest"
@@ -372,14 +446,45 @@ updateEnvVariables() {
 }
 
 # Determine action type from environment variable
+# if [[ "$ACTION_TYPE" == "patch" ]]; then
+#     patchDeployment
+# elif [[ "$ACTION_TYPE" == "update" ]]; then
+#     updateEnvVariables
+# elif [[ "$ACTION_TYPE" == "canary" ]]; then
+#     canary_generator
+# else
+#     logErrorMessage "❌ ERROR: Invalid ACTION_TYPE '$ACTION_TYPE'. Please set it to 'patch' or 'update'."
+#     TASK_STATUS=1
+# fi
+
+function rollback_stateless_app(){
+    rollback_file=/bp/data/rollback_stateless_app
+    deployment_previous_global_task_id=$(jq -r .buildpiper_meta_data.rollback.component_global_task_id < "$rollback_file")
+    logInfoMessage "The previous deployment global task id:- $deployment_previous_global_task_id"
+    cd /bp/data/k8s_manifest/
+    git checkout "$deployment_previous_global_task_id"
+    if command -v kubectl &> /dev/null; then
+        echo "✅ kubectl is installed and available in the PATH."
+    else
+        echo "❌ kubectl is not installed or not found in the PATH."
+        echo "Please ensure kubectl is correctly installed and accessible."
+        exit 1
+    fi
+    kubectl apply -f /bp/data/k8s_manifest/
+    TASK_STATUS=1
+}
+
+# Determine action type from environment variable
 if [[ "$ACTION_TYPE" == "patch" ]]; then
     patchDeployment
 elif [[ "$ACTION_TYPE" == "update" ]]; then
     updateEnvVariables
 elif [[ "$ACTION_TYPE" == "canary" ]]; then
     canary_generator
+elif [[ "$ACTION_TYPE" == "rollback" ]]; then
+    rollback_stateless_app
 else
-    logErrorMessage "❌ ERROR: Invalid ACTION_TYPE '$ACTION_TYPE'. Please set it to 'patch' or 'update'."
+    logErrorMessage ":x: ERROR: Invalid ACTION_TYPE '$ACTION_TYPE'. Please set it to 'patch', 'update', 'canary', or 'rollback'."
     TASK_STATUS=1
 fi
 

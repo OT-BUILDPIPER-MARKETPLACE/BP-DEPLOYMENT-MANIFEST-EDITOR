@@ -4,6 +4,7 @@ FROM alpine:latest
 RUN addgroup -g 65522 buildpiper && \
     adduser -u 65522 -G buildpiper -D -h /home/buildpiper buildpiper && \
     mkdir -p /home/buildpiper && \
+    mkdir -p /home/buildpiper/.local/bin/ && \
     chown -R buildpiper:buildpiper /home/buildpiper
 
 # Create required directories and set ownership
@@ -26,7 +27,13 @@ RUN mkdir -p \
 # WORKDIR /src
 
 # Install required packages
-RUN apk add --no-cache --upgrade bash jq yq git gettext libintl coreutils diffutils
+RUN apk add --no-cache --upgrade bash jq yq git curl gettext libintl coreutils diffutils
+
+# Installing Kubectl 
+ENV KUBECTL_VERSION=1.33.2
+RUN curl --proto "=https" --tlsv1.2 -sSf -LO https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
+    install -m 755 kubectl /home/buildpiper/.local/bin/
+ENV PATH="/home/buildpiper/.local/bin:${PATH}"
 
 USER buildpiper
 WORKDIR /src

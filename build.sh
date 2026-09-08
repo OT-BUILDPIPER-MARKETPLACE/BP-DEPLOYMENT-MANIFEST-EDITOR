@@ -95,6 +95,8 @@ pod_shift_service_editor(){
     BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
     CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
 
+    SVC_NAME=$(yq '.metadata.name' "$MAIN_SERVICE_FILE")
+
     canary_parent_global_task_id=`get_canary_parent_global_task_id`
 
     remove_old_routing_files
@@ -109,7 +111,7 @@ pod_shift_service_editor(){
         # CANARY_LABEL_VALUE
 
         yq -i "
-        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-baseline-svc\" |
         .metadata.labels.${BASELINE_LABEL} = \"${CURRENT_VERSION}\" |
         .spec.selector.${BASELINE_LABEL} = \"${CURRENT_VERSION}\"
         " "$BASELINE_FILE"
@@ -118,7 +120,7 @@ pod_shift_service_editor(){
         cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
         yq -i "
-        .metadata.name = \"canary-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-canary-svc\" |
         .metadata.labels.${CANARY_LABEL} = \"${CURRENT_VERSION}\" |
         .spec.selector.${CANARY_LABEL} = \"${CURRENT_VERSION}\"
         " "$CANARY_FILE"
@@ -154,7 +156,7 @@ pod_shift_service_editor(){
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
 
         yq -i "
-        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-baseline-svc\" |
         .metadata.labels.${BASELINE_LABEL} = \"${CURRENT_VERSION}\" |
         .spec.selector.${BASELINE_LABEL} = \"${CURRENT_VERSION}\"
         " "$BASELINE_FILE"
@@ -163,7 +165,7 @@ pod_shift_service_editor(){
         cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
         yq -i "
-        .metadata.name = \"canary-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-canary-svc\" |
         .metadata.labels.${CANARY_LABEL} = \"${CURRENT_VERSION}\" |
         .spec.selector.${CANARY_LABEL} = \"${CURRENT_VERSION}\"
         " "$CANARY_FILE"
@@ -204,6 +206,8 @@ canaryTrafficManager(){
     BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
     CANARY_FILE="$CODEBASE_LOCATION/canary_routing_service.yaml"
 
+    SVC_NAME=$(yq '.metadata.name' "$MAIN_SERVICE_FILE")
+
     #remove old routing files
     remove_old_routing_files
 
@@ -218,7 +222,7 @@ canaryTrafficManager(){
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
 
         yq -i "
-        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-baseline-svc\" |
         .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
         .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
         " "$BASELINE_FILE"
@@ -227,7 +231,7 @@ canaryTrafficManager(){
         cp "$MAIN_SERVICE_FILE" "$CANARY_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $CANARY_FILE"
         yq -i "
-        .metadata.name = \"canary-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-canary-svc\" |
         .metadata.labels.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\" |
         .spec.selector.${CANARY_LABEL} = \"${CANARY_LABEL_VALUE}\"
         " "$CANARY_FILE"
@@ -243,6 +247,8 @@ canaryTrafficManager(){
 rollingTrafficManager(){
     CODEBASE_LOCATION="/bp/data/k8s_manifest"
     MAIN_SERVICE_FILE="$CODEBASE_LOCATION/service.yaml"
+
+    SVC_NAME=$(yq '.metadata.name' "$MAIN_SERVICE_FILE")
 
     BASELINE_FILE="$CODEBASE_LOCATION/baseline_routing_service.yaml"
 
@@ -269,7 +275,7 @@ rollingTrafficManager(){
         cp "$MAIN_SERVICE_FILE" "$BASELINE_FILE"
         echo "Content of $MAIN_SERVICE_FILE copied to $BASELINE_FILE"
         yq -i "
-        .metadata.name = \"baseline-svc-routing\" |
+        .metadata.name = \"${SVC_NAME}-baseline-svc\" |
         .metadata.labels.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\" |
         .spec.selector.${BASELINE_LABEL} = \"${BASELINE_LABEL_VALUE}\"
         " "$BASELINE_FILE"
